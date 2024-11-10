@@ -1,0 +1,13 @@
+# Ignore VisualStudio folders and files
+.vs/
+Debug/
+Release/
+x64/
+ipch/
+.idea/
+*.sdf
+*.suo
+*.user
+*.sln
+*.vcxproj
+*.vcxproj.filters
