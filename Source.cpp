@@ -49,7 +49,6 @@ struct AccessRoutes {
 		return curlGet(url, authHeader);
 	}
 	
-
 	json submitResult(std::string url, std::string postData, json authHeader) {
 		
 		json jsonRes;
@@ -93,6 +92,7 @@ struct AccessRoutes {
 		return jsonRes;
 
 	}
+
 	json curlPost(std::string url, std::string postData) {
 		json jsonRes;
 
@@ -123,13 +123,13 @@ struct AccessRoutes {
 		curl_slist_free_all(headers);
 		return jsonRes;
 	}
-	
+
 	json curlGet(std::string url, json authHeader) {
 		json jsonRes;
 		
 		// Extract session_id and create the header string 
 		std::string sessionId = authHeader["session_id"].get<std::string>(); 
-		std::string sessionHeader = "Bearer=" + sessionId;
+		std::string sessionHeader = "Authorization: Bearer " + sessionId;
 		std::cout << "sessionHeader: " << sessionHeader << std::endl;
 
 		// set option for curl
@@ -162,10 +162,12 @@ struct AccessRoutes {
 
 int main() {
 	// strings for storing responses and URL
-	 std::string
-		URL = "https://hackdiversity.xyz/api/test/mockRoutes",
+	 const std::string
 		START_URL = "https://hackdiversity.xyz/api/start-session",
-		MOCK_SUBMIT_URL = "https://hackdiversity.xyz/api/test/submit-sorted-routes";
+		MOCK_ROUTE_URL = "https://hackdiversity.xyz/api/test/mockRoutes",
+		MOCK_SUBMIT_URL = "https://hackdiversity.xyz/api/test/submit-sorted-routes",
+		ROUTE_URL = "https://hackdiversity.xyz/api/navigation/routes",
+		SUBMIT_URL = "https://hackdiversity.xyz/api/navigation/sorted_routes";
 
 	AccessRoutes* accessRoutes = new AccessRoutes();
 
@@ -181,12 +183,14 @@ int main() {
 		json authHeaderJson = accessRoutes->getAuthHeader(START_URL, postData); // get session-id
 		std::cout << "session_id: " << authHeaderJson["session_id"] << std::endl;
 		
-		// get routes using session_id
-		json routes = accessRoutes->getRoutes(URL, authHeaderJson);
+		// get MOCK routes using session_id
+		json routes = accessRoutes->getRoutes(ROUTE_URL, authHeaderJson);
 		
 		// filter and sort routes
 		// create new json array to hold filtered value
 		json filteredRoutes = json::array();
+		
+		std::cin.get();
 
 		//for each entry in routes that is true, add to filteredRoutes
 		for (json& route : routes) {
@@ -194,11 +198,9 @@ int main() {
 				filteredRoutes.push_back(route);
 			}
 		}
-
 		std::cout << "Filtered routes by accessible equals true: " << filteredRoutes.dump(4) << std::endl;
 
-		int minIndex = 0, minValue;
-
+		int minIndex, minValue;
 		//sort routes by distance. going with selection sort
 		for (int i = 0; i < filteredRoutes.size() - 1; i++) {
 			// keep track of the part of the array thats yet to be sorted. Starting at 0. this will me minIndex.
@@ -210,28 +212,23 @@ int main() {
 				// make minIndex = the index of that element.
 				if (filteredRoutes[j]["distance"] < filteredRoutes[minIndex]["distance"]) {
 					minIndex = j;
-
 				}
 			}
-
 			//swap element at index i with element at index minIndex
 			json temp = filteredRoutes[i];
 			filteredRoutes[i] = filteredRoutes[minIndex];
 			filteredRoutes[minIndex] = temp;
 		}
-
-
 		std::cout << "Sorted routes by distance in accending order: " << filteredRoutes.dump(4) << std::endl;
 		
 		// submit result to mock-submit-endpoint
-		json sumbmissionResults = accessRoutes->submitResult(MOCK_SUBMIT_URL, filteredRoutes.dump(), authHeaderJson);
-
-		std::cin.get();
-		
+		json mockSumbmissionResults = accessRoutes->submitResult(SUBMIT_URL, filteredRoutes.dump(), authHeaderJson);
 	}
+	// clean up
 	delete accessRoutes;
 	accessRoutes = nullptr;
 	
+	// pause terminal before close 
 	std::cin.get();
 
 	return 0;
