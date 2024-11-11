@@ -140,8 +140,19 @@ int main() {
 		json routes = accessRoutes->getRoutes(URL, authHeaderJson);
 		
 		// filter and sort routes
-		
-		
+		// create new json array to hold filtered value
+		json filteredRoutes = json::array();
+
+		//for each entry in routes that is true, add to filteredRoutes
+		for (json& route : routes) {
+			if (route["accessible"] == true) {
+				filteredRoutes.push_back(route);
+			}
+		}
+
+		std::cout << filteredRoutes.dump(4) << std::endl;
+
+		//sort routes by distance
 	}
 	delete accessRoutes;
 	accessRoutes = nullptr;
