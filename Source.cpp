@@ -41,6 +41,14 @@ struct AccessRoutes {
 		return curlPost(url, postData);		 
 	}
 	
+	json getRoutes(std::string url, json authHeader) {
+		// clear reponse from last call if any
+		res.clear();
+
+		// call get function to url using postData as header/post content
+		return curlGet(url, authHeader);
+	}
+	
 	json curlPost(std::string url, std::string postData) {
 		json jsonRes;
 
@@ -71,6 +79,41 @@ struct AccessRoutes {
 		curl_slist_free_all(headers);
 		return jsonRes;
 	}
+	
+	json curlGet(std::string url, json authHeader) {
+		json jsonRes;
+		
+		// Extract session_id and create the header string 
+		std::string sessionId = authHeader["session_id"].get<std::string>(); 
+		std::string sessionHeader = "Bearer=" + sessionId;
+		std::cout << "sessionHeader: " << sessionHeader << std::endl;
+
+		// set option for curl
+		curl_easy_setopt(easyHandle, CURLOPT_URL, url.c_str());
+		curl_easy_setopt(easyHandle, CURLOPT_HTTPGET, 1L);							// set option to post	
+		curl_easy_setopt(easyHandle, CURLOPT_WRITEFUNCTION, writeCallback);
+		curl_easy_setopt(easyHandle, CURLOPT_WRITEDATA, &res );
+
+		// Set the authorization header 
+		struct curl_slist* headers = nullptr; 
+		headers = curl_slist_append(headers, sessionHeader.c_str());
+		curl_easy_setopt(easyHandle, CURLOPT_HTTPHEADER, headers);
+
+		// perform curl call and store response
+		curlRes = curl_easy_perform(easyHandle);
+
+		if (curlRes != CURLE_OK) {					// check if call was succesfull
+			std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(curlRes) << std::endl;
+		}
+		else {
+			jsonRes = json::parse(res);				// turn res into json obj
+			std::cout << jsonRes.dump(4) << std::endl;
+		}
+
+		// Clean up the headers list 
+		curl_slist_free_all(headers);
+		return jsonRes;
+	}
 };
 
 int main() {
@@ -94,7 +137,8 @@ int main() {
 		std::cout << "session_id: " << authHeaderJson["session_id"] << std::endl;
 		
 		// get routes using session_id
-
+		json routes = accessRoutes->getRoutes(URL, authHeaderJson);
+		
 		// filter and sort routes
 		
 		
