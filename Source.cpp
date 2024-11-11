@@ -49,6 +49,50 @@ struct AccessRoutes {
 		return curlGet(url, authHeader);
 	}
 	
+
+	json submitResult(std::string url, std::string postData, json authHeader) {
+		
+		json jsonRes;
+
+		// clear reponse from last call if any
+		res.clear();
+
+		// Extract session_id and create the header string 
+		std::string sessionId = authHeader["session_id"].get<std::string>(); 
+		std::string sessionHeader = "Authorization: Bearer " + sessionId;
+		std::cout << "sessionHeader: " << sessionHeader << std::endl;
+
+		//std::cin.get();
+
+		// set option for curl
+		curl_easy_setopt(easyHandle, CURLOPT_URL, url.c_str());					// set url
+		curl_easy_setopt(easyHandle, CURLOPT_POST, 1L);							// set option to post
+		curl_easy_setopt(easyHandle, CURLOPT_POSTFIELDS, postData.c_str());		// set contents of post
+		curl_easy_setopt(easyHandle, CURLOPT_WRITEFUNCTION, writeCallback);		// set callback function
+		curl_easy_setopt(easyHandle, CURLOPT_WRITEDATA, &res );					// set callback datatype 
+
+		// Set Content-Type header to application/json
+		struct curl_slist* headers = nullptr;
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+		headers = curl_slist_append(headers, sessionHeader.c_str());
+		curl_easy_setopt(easyHandle, CURLOPT_HTTPHEADER, headers);				// set header content/type
+
+		// perform curl call and store response
+		curlRes = curl_easy_perform(easyHandle);
+
+		// check if call was succesfull
+		if (curlRes != CURLE_OK) { 
+			std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(curlRes) << std::endl;
+		}
+		else {		// if so, print and return
+			jsonRes = json::parse(res);				
+			std::cout << "this is submitMockResponse res: " <<  jsonRes.dump(4) << std::endl;
+		}
+		// Clean up the headers list 
+		curl_slist_free_all(headers);
+		return jsonRes;
+
+	}
 	json curlPost(std::string url, std::string postData) {
 		json jsonRes;
 
@@ -118,9 +162,10 @@ struct AccessRoutes {
 
 int main() {
 	// strings for storing responses and URL
-	std::string res, 
+	 std::string
 		URL = "https://hackdiversity.xyz/api/test/mockRoutes",
-		START_URL = "https://hackdiversity.xyz/api/start-session";
+		START_URL = "https://hackdiversity.xyz/api/start-session",
+		MOCK_SUBMIT_URL = "https://hackdiversity.xyz/api/test/submit-sorted-routes";
 
 	AccessRoutes* accessRoutes = new AccessRoutes();
 
@@ -150,9 +195,39 @@ int main() {
 			}
 		}
 
-		std::cout << filteredRoutes.dump(4) << std::endl;
+		std::cout << "Filtered routes by accessible equals true: " << filteredRoutes.dump(4) << std::endl;
 
-		//sort routes by distance
+		int minIndex = 0, minValue;
+
+		//sort routes by distance. going with selection sort
+		for (int i = 0; i < filteredRoutes.size() - 1; i++) {
+			// keep track of the part of the array thats yet to be sorted. Starting at 0. this will me minIndex.
+			// As i moves through the array, everything before i should be in order. 
+			// Not checking the last element, inner loop will check the last two element and order them.
+			minIndex = i;
+			for (int j = i + 1; j < filteredRoutes.size(); j++) {
+				// if we find an element that is less than filteredRoutes[minIndex], 
+				// make minIndex = the index of that element.
+				if (filteredRoutes[j]["distance"] < filteredRoutes[minIndex]["distance"]) {
+					minIndex = j;
+
+				}
+			}
+
+			//swap element at index i with element at index minIndex
+			json temp = filteredRoutes[i];
+			filteredRoutes[i] = filteredRoutes[minIndex];
+			filteredRoutes[minIndex] = temp;
+		}
+
+
+		std::cout << "Sorted routes by distance in accending order: " << filteredRoutes.dump(4) << std::endl;
+		
+		// submit result to mock-submit-endpoint
+		json sumbmissionResults = accessRoutes->submitResult(MOCK_SUBMIT_URL, filteredRoutes.dump(), authHeaderJson);
+
+		std::cin.get();
+		
 	}
 	delete accessRoutes;
 	accessRoutes = nullptr;
